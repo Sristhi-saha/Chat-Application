@@ -2,14 +2,16 @@ import express from 'express';
 import { config } from 'dotenv';
 config();
 import User from '../models/user.model.js';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import cloudinary from '../config/cloudinary.js';
 
 export const registerUser = async (req, res) => {
     try {
-        const { email, password, name } = req.body;
+        const { email, password, name ,profilePicture} = req.body;
         if (!email || !password || !name) {
             return res.status(400).json({
-                messege: 'Please provide all info'
+                message: 'Please provide all info'
             })
         }
 
@@ -20,8 +22,19 @@ export const registerUser = async (req, res) => {
             })
         }
 
+        let profilepictureUrl= '';
+        if(profilePicture){
+            const uploadPicture = await cloudinary.uploader.upload(profilePicture,{
+                folder:'profilePicture',
+                resource_type:'auto'
+        })
+        profilepictureUrl = uploadPicture.secure_url;
+        }
+
+        const hashedPassword = await bcrypt.hash(password,10);
+        
         const newUser = new User({
-            name, email, password
+            name, email, password:hashedPassword,uploadPicture:profilepictureUrl
         })
         await newUser.save();
 
@@ -40,7 +53,12 @@ export const registerUser = async (req, res) => {
 
         res.status(201).json({
             message: 'User registered successfully',
-            user: newUser,
+            user: {
+                id: newUser._id,
+                name: newUser.name,
+                email: newUser.email,
+                profilePicture:newUser.uploadPicture
+            },
             token
         })
     } catch (e) {
@@ -67,7 +85,12 @@ export const loginUser = async (req, res) => {
                 message: 'Incorrect email or password'
             })
         }
-
+        const matchedPassword = await bcrypt.compare(password,user.password);
+        if(!matchedPassword){
+            return res.status(400).json({
+                message:'Incorrect email or password'
+            })
+        }
         const token = jwt.sign({
             id: user._id,
             name: user.name,
@@ -97,11 +120,11 @@ export const loginUser = async (req, res) => {
 
 export const googleAuth = async(req,res)=>{
     try{
-        const {name,email} = req.body;
+        const {name,email,profilePicture} = req.body;
         let user = await User.findOne({email});
         if(!user){
             user = await User.create({
-                email,name
+                email,name,profilePicture:profilePicture || ''
             })
         }
         const token = jwt.sign({

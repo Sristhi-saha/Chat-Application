@@ -7,13 +7,32 @@ const userSchema = new mongoose.Schema({
     },
     email:{
         type:String,
-        required:true
+        required:true,
+        unique:true
     },
     password:{
         type:String,
         required:false
     },
-},{timeStamps:true});
+    profilePicture:{
+        type:String,
+        required:false
+    },
+    isOnline:{
+        type:Boolean,
+        default:'false'
+    },
+    lastSeen:{
+        type:Date,
+        default:Date.now
+    }
+    ,friends:[
+        {
+            type:mongoose.Schema.Types.ObjectId,
+            ref:'User'
+        }
+    ]
+},{timestamps:true});
 
 const User = mongoose.model('User',userSchema);
 
