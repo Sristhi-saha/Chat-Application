@@ -8,7 +8,8 @@ import cloudinary from '../config/cloudinary.js';
 
 export const registerUser = async (req, res) => {
     try {
-        const { email, password, name ,profilePicture} = req.body;
+        const { email, password, name } = req.body;
+        console.log(req.body);
         if (!email || !password || !name) {
             return res.status(400).json({
                 message: 'Please provide all info'
@@ -22,19 +23,19 @@ export const registerUser = async (req, res) => {
             })
         }
 
-        let profilepictureUrl= '';
-        if(profilePicture){
-            const uploadPicture = await cloudinary.uploader.upload(profilePicture,{
-                folder:'profilePicture',
-                resource_type:'auto'
-        })
-        profilepictureUrl = uploadPicture.secure_url;
-        }
+        // let profilepictureUrl= '';
+        // if(profilePicture){
+        //     const uploadPicture = await cloudinary.uploader.upload(profilePicture,{
+        //         folder:'profilePicture',
+        //         resource_type:'auto'
+        // })
+        // profilepictureUrl = uploadPicture.secure_url;
+        // }
 
         const hashedPassword = await bcrypt.hash(password,10);
         
         const newUser = new User({
-            name, email, password:hashedPassword,uploadPicture:profilepictureUrl
+            name, email, password:hashedPassword
         })
         await newUser.save();
 
@@ -57,7 +58,7 @@ export const registerUser = async (req, res) => {
                 id: newUser._id,
                 name: newUser.name,
                 email: newUser.email,
-                profilePicture:newUser.uploadPicture
+                
             },
             token
         })
@@ -66,25 +67,28 @@ export const registerUser = async (req, res) => {
             messege: e.messege,
             error: e.messege
         })
+        console.log(e);
     }
 }
 
 export const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
+        console.log(req.body);
         if (!email || !password) {
             return res.status(400).json({
                 message: 'Please provide all info'
             })
         }
         const user = await User.findOne({
-            email, password
+            email
         })
         if (!user) {
             return res.status(400).json({
                 message: 'Incorrect email or password'
             })
         }
+        console.log("user is:",user);
         const matchedPassword = await bcrypt.compare(password,user.password);
         if(!matchedPassword){
             return res.status(400).json({
