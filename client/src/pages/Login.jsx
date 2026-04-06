@@ -9,6 +9,7 @@ import { IoPerson } from "react-icons/io5";
 import { TbLockPassword } from "react-icons/tb";
 import { TbPassword } from "react-icons/tb";
 import { MdUpload } from "react-icons/md";
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 
@@ -21,19 +22,27 @@ const Login = () => {
     password: '',
     profilePicture: null
   });
+  
   const [showicon, setShowIcon] = useState(false);
+  const navigate = useNavigate();
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log(formData);
-    const res = !isLogin ? await axios.post("http://localhost:8000/api/auth/register", formData) : await axios.post("https://localhost:8000/api/auth/login", formData);
+    const res = !isLogin ? 
+    await axios.post("http://localhost:8000/api/auth/register", formData) : 
+    await axios.post("http://localhost:8000/api/auth/login", {email:formData.email,password:formData.password});
     const data = res.data;
-    console.log(data);
+    console.log(res);
+    if(data){
+      navigate('/profile');
+    }
     setFormData({
       name: '',
       email: '',
       password: '',
     })
-    if (fileRef.current) fileRef.current.value = null;
+    if (fileRef.current) fileRef.current.value = '';
   }
   const handleButtonClick = () => {
     setIsLogin(!isLogin)
@@ -107,16 +116,7 @@ const Login = () => {
                   <input type={showicon ? "text" : "password"} onChange={(e) => setFormData({ ...formData, password: e.target.value })} value={formData.password} placeholder='Enter Password....' className='[&::-ms-reveal]:hidden [&::-ms-clear]:hidden border-2 border-[#3F76AC] outline-none p-3 rounded-2xl w-full pl-10' />
                   <TbPassword className='absolute top-1/2 right-4 -translate-y-1/2 text-[#3f76ac] text-xl' onClick={() => setShowIcon(!showicon)} />
                 </div>
-                <label className='border-2 border-dashed border-[#3F76AC] p-3 rounded-2xl w-full cursor-pointer text-center text-[#3f76ac] hover:bg-[#3f76ac15] transition-all duration-200 flex items-center justify-center gap-2'>
-                  <MdUpload className='text-xl' />
-                  <span>{formData.profilePicture ? formData.profilePicture.name : "Upload Profile Picture"}</span>
-                  <input
-                    type="file"
-                    ref={fileRef}
-                    onChange={(e) => setFormData({ ...formData, profilePicture: e.target.files[0] })}
-                    className='hidden'  
-                  />
-                </label>
+                
                 <button className='w-full rounded-xl bg-[#3F76AC] p-3 text-white font-semibold cursor-pointer' >Submit</button>
               </form>
             </motion.div>}
