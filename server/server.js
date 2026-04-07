@@ -5,11 +5,13 @@ import authRouter from "./routes/auth.route.js";
 import { createServer } from "http";
 import cors from "cors";
 import { Server } from "socket.io";
+import cookieParser from "cookie-parser";
 dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(cors({
     origin:'http://localhost:5173',
     credentials:true,
@@ -20,6 +22,7 @@ const server = createServer(app);
 const io = new Server(server);
 app.use('/api/auth',authRouter);
 
+
 io.on('connection',(socket)=>{
     console.log('a user connected');
 
@@ -28,7 +31,7 @@ io.on('connection',(socket)=>{
     })
 })
 
-app.listen(port, () => {
+server.listen(port, () => {
     console.log('server is running on port', `http://localhost:${port}`)
 });
 

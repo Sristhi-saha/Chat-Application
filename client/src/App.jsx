@@ -6,9 +6,22 @@ import { Routes ,Route} from 'react-router-dom'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Chats from './pages/Chats'
+import Profile from './pages/Profile'
+import { useSelector } from 'react-redux'
 import './App.css'
+import { useEffect } from 'react'
+import { useDispatch } from 'react-redux'
+import { setUser } from './redux/USerSlice'
+
 
 function App() {
+  const dispatch = useDispatch();
+  useEffect(()=>{
+    const id = localStorage.getItem('id');
+    if(id){
+        dispatch(setUser(id));
+    }
+},[])
   
   return (
     <>
@@ -16,6 +29,7 @@ function App() {
       <Route path='/' element={<Home/>} />
       <Route  path='/login' element={<Login />}/>
       <Route path='/chats' element={<Chats />} />
+      <Route path='/profile' element={<Profile/>} />
     </Routes>
     </>
      )

@@ -4,6 +4,7 @@ config();
 import User from '../models/user.model.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { Buffer } from 'buffer';
 import cloudinary from '../config/cloudinary.js';
 
 export const registerUser = async (req, res) => {
@@ -32,10 +33,10 @@ export const registerUser = async (req, res) => {
         // profilepictureUrl = uploadPicture.secure_url;
         // }
 
-        const hashedPassword = await bcrypt.hash(password,10);
-        
+        const hashedPassword = await bcrypt.hash(password, 10);
+
         const newUser = new User({
-            name, email, password:hashedPassword
+            name, email, password: hashedPassword
         })
         await newUser.save();
 
@@ -48,17 +49,18 @@ export const registerUser = async (req, res) => {
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000
         })
+        console.log("token set:", token);
 
         res.status(201).json({
             message: 'User registered successfully',
             user: {
-                id: newUser._id,
+                _id: newUser._id,
                 name: newUser.name,
                 email: newUser.email,
-                
+
             },
             token
         })
@@ -88,11 +90,11 @@ export const loginUser = async (req, res) => {
                 message: 'Incorrect email or password'
             })
         }
-        console.log("user is:",user);
-        const matchedPassword = await bcrypt.compare(password,user.password);
-        if(!matchedPassword){
+        console.log("user is:", user);
+        const matchedPassword = await bcrypt.compare(password, user.password);
+        if (!matchedPassword) {
             return res.status(400).json({
-                message:'Incorrect email or password'
+                message: 'Incorrect email or password'
             })
         }
         const token = jwt.sign({
@@ -122,51 +124,96 @@ export const loginUser = async (req, res) => {
     }
 }
 
-export const googleAuth = async(req,res)=>{
-    try{
-        const {name,email,profilePicture} = req.body;
-        let user = await User.findOne({email});
-        if(!user){
+export const googleAuth = async (req, res) => {
+    try {
+        const { name, email, profilePicture } = req.body;
+        let user = await User.findOne({ email });
+        if (!user) {
             user = await User.create({
-                email,name,profilePicture:profilePicture || ''
+                email, name, profilePicture: profilePicture || ''
             })
         }
         const token = jwt.sign({
-            id:user._id,
-            name:user.name,
-            email:user.email,
-        },process.env.JWT_SECRET,{expiresIn:'7d'}
-       )
+            id: user._id,
+            name: user.name,
+            email: user.email,
+        }, process.env.JWT_SECRET, { expiresIn: '7d' }
+        )
 
-       res.cookie('token',token,{
-        httpOnly:true,
-        secure:process.env.NODE_ENV === 'PRODUCTION',
-        sameSite:'strict',
-        expiresIn:7*24*60*60*1000
-       })
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'PRODUCTION',
+            sameSite: 'strict',
+            expiresIn: 7 * 24 * 60 * 60 * 1000
+        })
 
-       res.status(200).json({
-        message:'User logged in successfully',
-        user,
-        token
-       })
+        res.status(200).json({
+            message: 'User logged in successfully',
+            user,
+            token
+        })
 
-    }catch(e){
+    } catch (e) {
         res.status(500).json({
-            message:e.message,
+            message: e.message,
         })
     }
 }
 
-export const logoutUser = async(req,res)=>{
-    try{
+export const logoutUser = async (req, res) => {
+    try {
         res.clearCookie('token');
         res.status(200).json({
-            message:'User logged out successfully'
+            message: 'User logged out successfully'
         })
-    }catch(e){
+    } catch (e) {
         res.status(500).json({
-            message:e.message,
+            message: e.message,
+        })
+    }
+}
+
+export const profileCreated = async (req, res) => {
+    try {
+        const { name, bio, profilePicture } = req.body;
+        const id = req.id;
+        console.log(id);
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message: 'USer not found!'
+            })
+        }
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'User not found!'
+            })
+        }
+        const b64 = Buffer.from(req.file.buffer).toString('base64')
+        const dataURI = `data:${req.file.mimetype};base64,${b64}`
+
+        const uploadPicture = await cloudinary.uploader.upload(dataURI, {
+            folder: 'profilePicture',
+            resource_type: 'auto'
+        })
+        const updatedData = await User.findByIdAndUpdate(id, {
+            name: name,
+            bio: bio,
+            profilePicture: uploadPicture.secure_url
+        }, { new: true })
+
+        res.status(200).json({
+            success: true,
+            message: 'Profile Updated Successfully',
+            user: updatedData
+        })
+    } catch (e) {
+        console.log(e);
+        res.status(500).json({
+            success: false,
+            message: e.message
         })
     }
 }

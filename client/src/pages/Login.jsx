@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AiFillEye, AiFillEyeInvisible } from 'react-icons/ai'
@@ -10,10 +10,14 @@ import { TbLockPassword } from "react-icons/tb";
 import { TbPassword } from "react-icons/tb";
 import { MdUpload } from "react-icons/md";
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { setUser } from '../redux/USerSlice.js';
 import axios from 'axios';
 
 
 const Login = () => {
+  const dispatch = useDispatch();
+  const user = useSelector((state)=>state.user.user);
   const [isLogin, setIsLogin] = useState(false);
   const fileRef = useRef(null);
   const [formData, setFormData] = useState({
@@ -25,15 +29,21 @@ const Login = () => {
   
   const [showicon, setShowIcon] = useState(false);
   const navigate = useNavigate();
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log(formData);
     const res = !isLogin ? 
-    await axios.post("http://localhost:8000/api/auth/register", formData) : 
-    await axios.post("http://localhost:8000/api/auth/login", {email:formData.email,password:formData.password});
+    await axios.post("http://localhost:8000/api/auth/register", formData,{
+      withCredentials:true,
+    }) : 
+    await axios.post("http://localhost:8000/api/auth/login", {email:formData.email,password:formData.password},{
+      withCredentials:true,
+    });
     const data = res.data;
     console.log(res);
+    dispatch(setUser(res.data.user._id));
+    localStorage.setItem('id',res.data.user._id);
     if(data){
       navigate('/profile');
     }

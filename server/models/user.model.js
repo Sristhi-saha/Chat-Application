@@ -22,6 +22,10 @@ const userSchema = new mongoose.Schema({
         type:Boolean,
         default:'false'
     },
+    bio:{
+        type:String,
+        required:false
+    },
     lastSeen:{
         type:Date,
         default:Date.now
