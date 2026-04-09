@@ -11,13 +11,14 @@ import { TbPassword } from "react-icons/tb";
 import { MdUpload } from "react-icons/md";
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { setUser } from '../redux/USerSlice.js';
+import { setUserID } from '../redux/USerSlice.js';
 import axios from 'axios';
 
 
 const Login = () => {
   const dispatch = useDispatch();
-  const user = useSelector((state)=>state.user.user);
+  const user = useSelector((state)=>state.User);
+  console.log(user);
   const [isLogin, setIsLogin] = useState(false);
   const fileRef = useRef(null);
   const [formData, setFormData] = useState({
@@ -42,7 +43,7 @@ const Login = () => {
     });
     const data = res.data;
     console.log(res);
-    dispatch(setUser(res.data.user._id));
+    dispatch(setUserID(res.data.user._id));
     localStorage.setItem('id',res.data.user._id);
     if(data){
       navigate('/profile');
