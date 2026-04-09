@@ -202,7 +202,7 @@ export const profileCreated = async (req, res) => {
             name: name,
             bio: bio,
             profilePicture: uploadPicture.secure_url
-        }, { new: true })
+        },)
 
         res.status(200).json({
             success: true,
@@ -217,3 +217,26 @@ export const profileCreated = async (req, res) => {
         })
     }
 }
+
+export const getMyProfile = async(req,res)=>{
+    try{
+        const id = req.id;
+        const user = await User.findById(id).select('name bio profilePicture');
+        if(!user){
+            return res.status(404).json({
+                message:'User not found',
+                status:false
+            })
+        }
+        return res.status(200).json({
+            message:'USer profile retrieve successfully',
+            status:true,
+            user
+        })
+    }catch(e){
+        return res.status(500).json({
+            message:e.message,
+            status:false
+        })
+    }
+} 
