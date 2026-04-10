@@ -27,7 +27,7 @@ const Navbar = () => {
     return (
         <div className='w-full h-16 bg-[#9ab5d4e9] flex justify-between items-center px-4 shadow-2xs shadow-blue-200 fixed top-0 left-0 z-50'>
             <div className="logo flex items-center ">
-                <img src="/logo.png" alt="" className='w-16 h-16 object-cover' />
+                <img src="/logo.png" alt="" className='w-14 h-14 object-cover' />
                 <span className='font-bold text-[24px] text-white'>ippleRoom</span>
             </div>
 
