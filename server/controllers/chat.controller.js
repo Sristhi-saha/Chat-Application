@@ -1,4 +1,4 @@
-import { dotenv } from 'dotenv';
+import  dotenv  from 'dotenv';
 dotenv.config();
 import User from '../models/user.model.js';
 
@@ -64,3 +64,24 @@ export const markMessageAsRead = async (req, res) => {
     }
 }
 
+export const allusers = async(req,res)=>{
+    try{
+        const id = req.id;
+        const all = await User.find({_id:{$ne:id}});
+
+            if(!all){
+                return res.status(400).json({
+                    message:'users not find'
+                })
+            }
+            console.log('not found')
+            return res.status(200).json({
+                message:'USer fetched successfully',
+                user:all
+            })
+        }catch(e){
+        return res.status(500).json({
+            message:e.message
+        })
+    }
+}

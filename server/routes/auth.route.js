@@ -6,7 +6,7 @@ const authRouter = Router();
 
 authRouter.post('/register',registerUser);
 authRouter.post('/login',loginUser);
-authRouter.get('/logout',logoutUser);
+authRouter.get('/logout',authMiddelware,logoutUser);
 authRouter.post('/profile',authMiddelware,upload.single('profilePicture'),profileCreated);
 authRouter.get('/me',authMiddelware,getMyProfile);
 

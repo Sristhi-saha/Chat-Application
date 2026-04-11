@@ -29,7 +29,13 @@ const userSchema = new mongoose.Schema({
     lastSeen:{
         type:Date,
         default:Date.now
-    }
+    },
+    requestSendBy:[
+        {
+            type:mongoose.Schema.Types.ObjectId,
+            ref:'User',
+            }
+    ]
     ,friends:[
         {
             type:mongoose.Schema.Types.ObjectId,

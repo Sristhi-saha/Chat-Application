@@ -2,7 +2,48 @@ import express from 'express';
 import { config } from 'dotenv';
 config();
 import Message from '../models/message.model.js';
-import cloudinary from '../config/cloudinary';
+import cloudinary from '../config/cloudinary.js';
+import User from '../models/user.model.js';
+
+
+export const sendRequest = async(req,res)=>{
+    try{
+
+        const sendId = req.id;
+        const {receiveId} = req.body;
+        if(!sendId || !receiveId){
+            return res.status(400).json({
+                message:'must provide send and receiveid',
+                success:false
+            })
+        }
+        const userfind = await User.findById(receiveId);
+        let user;
+        if(userfind.requestSendBy.includes(sendId)){
+            console.log('already frn');
+            return res.status(400).json({
+                message:'Already send',
+                success:false
+            })
+        }else{
+            user = await User.findByIdAndUpdate(receiveId,{$push:{requestSendBy:sendId}});
+        }
+
+        
+        console.log("from send request:",user);
+        return res.status(200).json({
+            message:'request send',
+            success:true
+        })
+
+    }catch(e){
+        console.log(e.message.message)
+        return res.status(500).json({
+            message:e.message,
+            success:false
+        })
+    }
+}
 
 export const sendMessage = async (req, res) => {
     try {

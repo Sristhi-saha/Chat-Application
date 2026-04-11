@@ -6,6 +6,7 @@ import { createServer } from "http";
 import cors from "cors";
 import { Server } from "socket.io";
 import cookieParser from "cookie-parser";
+import userRouter from "./routes/users.route.js";
 dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
@@ -21,6 +22,7 @@ connectToDB();
 const server = createServer(app);
 const io = new Server(server);
 app.use('/api/auth',authRouter);
+app.use('/api/user',userRouter);
 
 
 io.on('connection',(socket)=>{

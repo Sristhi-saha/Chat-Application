@@ -162,6 +162,7 @@ export const googleAuth = async (req, res) => {
 
 export const logoutUser = async (req, res) => {
     try {
+        console.log("from logoutUser controller", req.id);
         res.clearCookie('token');
         res.status(200).json({
             message: 'User logged out successfully'
