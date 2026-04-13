@@ -192,18 +192,21 @@ export const profileCreated = async (req, res) => {
                 message: 'User not found!'
             })
         }
+        let uploadPicture='';
+        if(req.file){
         const b64 = Buffer.from(req.file.buffer).toString('base64')
         const dataURI = `data:${req.file.mimetype};base64,${b64}`
 
-        const uploadPicture = await cloudinary.uploader.upload(dataURI, {
+        uploadPicture = await cloudinary.uploader.upload(dataURI, {
             folder: 'profilePicture',
             resource_type: 'auto'
         })
+    }
         const updatedData = await User.findByIdAndUpdate(id, {
             name: name,
             bio: bio,
             profilePicture: uploadPicture.secure_url
-        },)
+        },{new:true})
 
         res.status(200).json({
             success: true,

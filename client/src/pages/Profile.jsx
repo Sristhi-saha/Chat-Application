@@ -35,8 +35,10 @@ const Profile = () => {
         profilePicture: null,
     });
     const handleFileChange = (e) => {
+
         const file = e.target.files[0];
         setFormData({ ...formData, profilePicture: file });
+        
 
     }
 
@@ -75,8 +77,8 @@ const Profile = () => {
                 </div>
                 <div className="flex flex-col justify-center items-center w-full gap-5 mt-24 p-10 ">
                     <form className='gap-4 flex flex-col justify-center w-full' onSubmit={(e) => handleSubmit(e)}>
-                        <input type="text" onChange={(e) => setFormData({ ...formData, name: e.target.value })} value={name?name:formData.name} placeholder={name?name:'John Doe'} className='focus:none border-2 border-[#5e90ca] p-2 pl-3 shadow shadow-[#abc7dc99] outline-none rounded-full w-full' />
-                        <textarea value={bio?bio:formData.bio} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder={bio?bio:'Currently Now....'} className='focus:none border-2 border-[#5e90ca] p-2 pl-3 shadow shadow-[#abc7dc99] outline-none rounded-3xl w-full resize-none' />
+                        <input type="text" onChange={(e) => setFormData({ ...formData, name: e.target.value })} value={formData.name} placeholder={name?name:'John Doe'} className='focus:none border-2 border-[#5e90ca] p-2 pl-3 shadow shadow-[#abc7dc99] outline-none rounded-full w-full' />
+                        <textarea value={formData.bio} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder={bio?bio:'Currently Now....'} className='focus:none border-2 border-[#5e90ca] p-2 pl-3 shadow shadow-[#abc7dc99] outline-none rounded-3xl w-full resize-none' />
                         <label className='border-2 border-dashed border-[#3F76AC] p-3 rounded-2xl w-full cursor-pointer text-center text-[#3f76ac] hover:bg-[#3f76ac15] transition-all duration-200 flex items-center justify-center gap-2'>
                             <MdUpload className='text-xl' />
                             <span>{formData.profilePicture ? "Uploaded" : "Upload Profile Picture"}</span>
