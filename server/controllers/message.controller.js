@@ -45,6 +45,48 @@ export const sendRequest = async(req,res)=>{
     }
 }
 
+export const sendRequestBy = async(req,res)=>{
+    try{
+        const id = req.id;
+        const data = await User.findById(id).select('requestSendBy').populate('requestSendBy');
+        console.log("from send requestBy:",data);
+        return res.status(200).json({
+            message:'fetched successfully',
+            data
+        })
+    }catch(e){
+
+    }
+}
+
+export const acceptRequest = async(req,res)=>{
+    try{
+        const id= req.id;
+        const {sendId}= req.body;
+        if(!sendId){
+            return res.status(400).json({
+                message:'please accpect at first',
+                status:false
+            })
+        }
+        const response = await User.findByIdAndUpdate(id,{$push:{friends:sendId}});
+        const send = await User.findByIdAndUpdate(sendId,{$push:{friends:id}});
+        const remove = await User.findByIdAndUpdate(id,{$pull:{requestSendBy:sendId}})
+        const user = await User.findById(id);
+
+        return res.status(200).json({
+            message:'Accept request successfully',
+            user
+        })
+
+    }catch(e){
+        return res.status(500).json({
+            message:'server error',
+            status:false
+        })
+    }
+}
+
 export const sendMessage = async (req, res) => {
     try {
         const { sender, receiver, content, contentType, fileUrl } = req.body;

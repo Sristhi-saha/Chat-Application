@@ -7,7 +7,8 @@ const USerSlice = createSlice({
         userID:null,
         profilePicture:null,
         name:null,
-        bio:null
+        bio:null,
+        requestSendBY:[]
     },
     reducers:{
         setUserID:(state,action)=>{
@@ -21,11 +22,14 @@ const USerSlice = createSlice({
         },
         setBio:(state,action)=>{
             state.bio = action.payload;
-        }    
+        },
+        setRequestSendBy:(state,action)=>{ 
+            state.requestSendBY = action.payload
+        }   
     }
 })
 
-export const {setUserID,setProfilePicture,setName,setBio} = USerSlice.actions;
+export const {setUserID,setProfilePicture,setName,setBio,setRequestSendBy} = USerSlice.actions;
 
 export default USerSlice;
 
