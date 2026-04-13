@@ -87,6 +87,31 @@ export const acceptRequest = async(req,res)=>{
     }
 }
 
+export const rejectRequest = async(req,res)=>{
+    try{
+        const id= req.id;
+        const {sendId}= req.body;
+        if(!sendId){
+            return res.status(400).json({
+                message:'please accpect at first',
+                status:false
+            })
+        }
+        const response = await User.findByIdAndUpdate(id,{$pull:{requestSendBy:sendId}})
+
+        return res.status(200).json({
+            message:'Accept reject successfully',
+            response
+        })
+
+    }catch(e){
+        return res.status(500).json({
+            message:'server error',
+            status:false
+        })
+    }
+}
+
 export const sendMessage = async (req, res) => {
     try {
         const { sender, receiver, content, contentType, fileUrl } = req.body;

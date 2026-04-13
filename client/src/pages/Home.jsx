@@ -26,7 +26,8 @@ const Home = () => {
     const res = await axios.get('http://localhost:8000/api/user/requestSendBy',{
       withCredentials:true
     });
-    setRequestSend(res.data.data.requestSendBy)
+    setRequestSend(res.data.data.requestSendBy);
+    console.log(res,requestSend)
   }
 
   const addFriend=async(id)=>{
@@ -36,6 +37,16 @@ const Home = () => {
     if(res.status){
       requestSendBy();
     }
+    console.log(res)
+  }
+  const removeFriend=async(id)=>{
+    const res = await axios.post('http://localhost:8000/api/user/rejectRequest',{sendId:id},{
+      withCredentials:true
+    })
+    if(res.status){
+      requestSendBy();
+    }
+    console.log(res)
   }
 
   const sendRequest = async (id) => {
@@ -75,17 +86,23 @@ const Home = () => {
                 <div className="w-[154px] border-2 border-gray-400 pl-3 pr-2 text-gray-600 rounded-4xl ">Request Send By</div>
                 <div className="flex gap-10 mt-6 overflow-hidden flex-wrap">
                   {
-                    requestSend.map((value, key) => (
-                      <div className="w-[260px] p-4 border-2 border-blue-100 rounded-2xl">
+                    requestSend.length>0?requestSend.map((value, key) => (
+                      <div className=" p-4 border-2 border-blue-100 rounded-2xl">
                         <div className="flex justify-center items-center flex-col">
                           <img src={value.profilePicture ? value.profilePicture : 'https://static.vecteezy.com/system/resources/previews/036/280/650/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'} alt="" className='w-20 h-20 rounded-full flex  items-center justify-center' />
                           <h2 className='text-[22px] font-bold'>{value.name}</h2>
                           <p className='text-[18px] font-semibold text-gray-600'>{value.bio}</p>
-                          <button onClick={() => { addFriend(value._id) }} className='mt-4 w-full bg-[#587ab1] p-2 text-white font-bold rounded-2xl hover:bg-[#30599c] transition-colors cursor-pointer'>
-                            {value.requestSendBy.includes(id) || buttonText.includes(value._id) ? 'Request send' : 'Accept Request'}</button>
+                          <div className="flex justify-between items-center gap-5 w-full mt-4">
+                            <button onClick={() => { addFriend(value._id) }} className=' w-1/2 bg-[#587ab1] p-2 pl-3 pr-3 text-white font-bold rounded-xl hover:bg-[#30599c] transition-colors cursor-pointer'>
+                            {value.requestSendBy.includes(id) || buttonText.includes(value._id) ? 'Request send' : 'Accept'}
+                          </button>
+                          <button onClick={() => { removeFriend(value._id) }} className='w-1/2 bg-[#a43939] p-2 pl-3 pr-3 text-white font-bold rounded-xl hover:bg-[#30599c] transition-colors cursor-pointer'>
+                            {value.requestSendBy.includes(id) || buttonText.includes(value._id) ? 'Request send' : 'Reject '}
+                          </button>
+                          </div>
                         </div>
                       </div>
-                    ))
+                    )):(<div className='flex justify-center items-center w-full text-[18px] text-gray-700'>No Request is send</div>)
                   }
                 </div>
               </div>
