@@ -53,7 +53,7 @@ const Profile = () => {
         const res = await axios.post("http://localhost:8000/api/auth/profile", form, {
             withCredentials: true
         })
-        console.log(res)
+        console.log("user profile",res)
         const data = res.data;
         console.log(data.user.profilePicture);
         dispatch(setProfilePicture(data.user.profilePicture));
