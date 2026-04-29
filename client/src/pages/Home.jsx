@@ -114,7 +114,7 @@ const Home = () => {
                 <div className="flex gap-10 mt-6 overflow-hidden flex-wrap">
                   {
                     users.map((value, key) => (
-                      <div className="w-[260px] p-4 border-2 border-blue-100 rounded-2xl">
+                      <div className="w-[280px] p-4 border-2 border-blue-100 rounded-2xl">
                         <div className="flex justify-center items-center flex-col">
                           <img src={value.profilePicture ? value.profilePicture : 'https://static.vecteezy.com/system/resources/previews/036/280/650/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'} alt="" className='w-20 h-20 rounded-full flex  items-center justify-center' />
                           <h2 className='text-[22px] font-bold'>{value.name}</h2>

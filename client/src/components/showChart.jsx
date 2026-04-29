@@ -14,6 +14,7 @@ const ShowChart = () => {
     const [friends, setFriends] = useState([]);
     const [input, setInput] = useState('');
     const [selected, setSelected] = useState('');
+    console.log(selected._id, friends)
 
     useEffect(() => {
         const newSocket = io('http://localhost:8000');
@@ -24,6 +25,7 @@ const ShowChart = () => {
         if (newSocket && myuserId) {
             newSocket.emit('register', myuserId);
         }
+
         return () => { if (newSocket) newSocket.disconnect() };
     }, [myuserId, newSocket])
 
@@ -43,15 +45,35 @@ const ShowChart = () => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [messages])
 
-    const sendMessage = () => {
-
+    const sendMessage = async () => {
+        console.log('cllled')
+        if (!input || !myuserId || !selected?._id) return;
+        console.log(input, myuserId, selected._id)
+        newSocket.emit("private_message", { toUserId: selected._id, message: input, fromUserID: myuserId });
+        setInput("");
     }
 
+    useEffect(() => {
+        if (!newSocket) return;
+
+        newSocket.on("receive_message", (msg) => {
+            console.log("RECEIVED:", msg);
+
+            setMessages((prev) => [
+                ...prev,
+                {
+                    from: msg.sender,
+                    text: msg.content
+                }
+            ]);
+        });
+
+        return () => newSocket.off("receive_message");
+    }, [newSocket]);
+
     return (
-        // ✅ Fix 1: added overflow-hidden to root
         <div className="flex w-full h-screen overflow-hidden pt-16">
 
-            {/* SIDEBAR */}
             <div className="pt-2 w-[360px] h-full bg-[#e8eff1] pr-3 ml-17 pl-2">
                 <div className='text-black flex justify-between items-center'>
                     <h2 className='text-[18px] font-semibold pl-1'>Showchart</h2>
@@ -78,7 +100,7 @@ const ShowChart = () => {
                                 <img
                                     src={e.profilePicture ? e.profilePicture : 'https://static.vecteezy.com/system/resources/previews/036/280/650/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'}
                                     alt=""
-                                    className='h-10 w-10 rounded-full'
+                                    className='h-10 w-10 rounded-full bg-cover'
                                 />
                                 <div className="flex ml-2">
                                     <p>{e.name}</p>
@@ -95,38 +117,39 @@ const ShowChart = () => {
 
                 {/* HEADER */}
                 <div className="p-3 bg-white border-b flex items-center gap-3 shrink-0">
-                   {selected? <img className='h-10 w-10 rounded-full' src={selected.profilePicture?selected.profilePicture:'https://static.vecteezy.com/system/resources/previews/036/280/650/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'} alt="" />:""}
+                    {selected ? <img className='h-10 w-10 rounded-full' src={selected.profilePicture ? selected.profilePicture : 'https://static.vecteezy.com/system/resources/previews/036/280/650/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'} alt="" /> : ""}
                     <p className="font-semibold">
                         {selected ? selected.name : "Select a chat"}
                     </p>
                 </div>
 
                 {/* MESSAGES */}
-                <div className="flex-1 min-h-0 overflow-y-auto p-3 bg-[#eaf2f6]">
-                    {messages.length === 0 ? (
-                        <div className="text-gray-400 text-center mt-10">
-                            No messages yet
-                        </div>
-                    ) : (
-                        messages.map((msg, i) => (
-                            <div
-                                key={i}
-                                className={`flex mb-2 ${msg.from === myuserId ? "justify-end" : "justify-start"}`}
-                            >
+                {
+                    <div className="flex-1 min-h-0 overflow-y-auto p-3 bg-[#eaf2f6]">
+                        {messages.length === 0 ? (
+                            <div className="text-gray-400 text-center mt-10">
+                                No messages yet
+                            </div>
+                        ) : (
+                            messages.map((msg, i) => (
                                 <div
-                                    className={`px-3 py-2 rounded-lg max-w-[60%] ${
-                                        msg.from === myuserId
+                                    key={i}
+                                    className={`flex mb-2 ${msg.from === myuserId ? "justify-end" : "justify-start"}`}
+                                >
+                                    <div
+                                        className={`px-3 py-2 rounded-lg max-w-[60%] ${msg.from === myuserId
                                             ? "bg-[#32628b] text-white"
                                             : "bg-white"
-                                    }`}
-                                >
-                                    {msg.text}
+                                            }`}
+                                    >
+                                        {msg.text}
+                                    </div>
                                 </div>
-                            </div>
-                        ))
-                    )}
-                    <div ref={bottomRef} />
-                </div>
+                            ))
+                        )}
+                        <div ref={bottomRef} />
+                    </div>
+                }
 
                 {/* INPUT */}
                 <div className="p-3 bg-white border-t flex gap-2 shrink-0">
@@ -137,7 +160,7 @@ const ShowChart = () => {
                         placeholder="Type a message..."
                     />
                     <button
-                        onClick={sendMessage}
+                        onClick={() => sendMessage()}
                         className="bg-[#6e9ccd] text-white hover:bg-[#4e87b5] transition-all cursor-pointer font-semibold px-6 rounded-lg shadow shadow-[#949090d6]"
                     >
                         Send
