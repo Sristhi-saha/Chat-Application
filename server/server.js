@@ -5,6 +5,7 @@ import authRouter from "./routes/auth.route.js";
 import { createServer } from "http";
 import cors from "cors";
 import { Server } from "socket.io";
+import {initSocket} from './socket/socket.js'
 import cookieParser from "cookie-parser";
 import userRouter from "./routes/users.route.js";
 dotenv.config();
@@ -20,18 +21,13 @@ app.use(cors({
 }))
 connectToDB();
 const server = createServer(app);
-const io = new Server(server);
+const io = new Server(server,{
+    cors:{origin:'http://localhost:5173'}
+});
+initSocket(io);
 app.use('/api/auth',authRouter);
 app.use('/api/user',userRouter);
 
-
-io.on('connection',(socket)=>{
-    console.log('a user connected');
-
-    socket.on('disconnect',()=>{
-        console.log('a user disconnected');
-    })
-})
 
 server.listen(port, () => {
     console.log('server is running on port', `http://localhost:${port}`)

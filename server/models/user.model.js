@@ -39,9 +39,10 @@ const userSchema = new mongoose.Schema({
     ,friends:[
         {
             type:mongoose.Schema.Types.ObjectId,
-            ref:'User'
+            ref:'User',
+             unique:true
         }
-    ]
+       ]
 },{timestamps:true});
 
 const User = mongoose.model('User',userSchema);

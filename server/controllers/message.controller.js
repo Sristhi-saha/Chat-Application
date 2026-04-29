@@ -254,3 +254,36 @@ export const updateMessage = async(req,res)=>{
         })
     }
 }
+
+export const getAllFriend = async (req, res) => {
+    try {
+        console.log('from get all friends');
+
+        const id = req.id; // or req.user.id depending on middleware
+
+        if (!id) {
+            return res.status(400).json({
+                message: 'Id is necessary',
+                success: false
+            });
+        }
+
+        const user = await User.findById(id).select('friends');
+
+        const friend = await User.find({_id:user.friends})
+
+        console.log("from friends", user,friend);
+
+        return res.status(200).json({
+            friends: friend,
+            success: true
+        });
+
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            message: 'server error',
+            success: false
+        });
+    }
+};

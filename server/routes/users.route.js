@@ -1,5 +1,5 @@
 import { allusers } from "../controllers/chat.controller.js";
-import { acceptRequest, sendRequest, sendRequestBy,rejectRequest } from "../controllers/message.controller.js";
+import { acceptRequest, sendRequest, sendRequestBy,rejectRequest, getAllFriend } from "../controllers/message.controller.js";
 import { authMiddelware } from "../middlewares/auth.middelware.js";
 import  Router from 'express';
 
@@ -11,5 +11,6 @@ userRouter.post('/requestSend',authMiddelware,sendRequest);
 userRouter.get('/requestSendBy',authMiddelware,sendRequestBy);
 userRouter.post('/acceptRequest',authMiddelware,acceptRequest);
 userRouter.post('/rejectRequest',authMiddelware,rejectRequest);
+userRouter.get('/getFriends',authMiddelware,getAllFriend);
 
 export default userRouter;
