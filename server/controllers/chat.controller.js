@@ -67,7 +67,15 @@ export const markMessageAsRead = async (req, res) => {
 export const allusers = async(req,res)=>{
     try{
         const id = req.id;
-        const all = await User.find({_id:{$ne:id}});
+        const me = await User.findById(id);
+        const excludes = [id,...me.friends,...me.requestSendBy];
+        const requestsendByme = await User.find({requestSendBy:id}).select('_id');
+        requestsendByme.forEach((user)=>{
+            excludes.push(user._id);
+        })
+
+        
+        const all = await User.find({_id:{$nin:excludes}});
 
             if(!all){
                 return res.status(400).json({

@@ -114,65 +114,88 @@ export const rejectRequest = async(req,res)=>{
 
 export const sendMessage = async (req, res) => {
     try {
-        const { sender, receiver, content, contentType, fileUrl } = req.body;
-        if (!sender || !receiver || !content) {
+        const { 
+            toUserId, 
+            fromUserId, 
+            messages, 
+            contentType = 'text',  // ← default to 'text' if not provided
+            fileUrl 
+        } = req.body;
+
+        // Validation
+        if (!toUserId || !fromUserId || !messages) {
             return res.status(400).json({
                 message: 'please give all info'
-            })
+            });
         }
+
         if (contentType !== 'text' && !fileUrl) {
             return res.status(400).json({
-                message: 'fileurl is required for sending file or image'
-            })
+                message: 'fileUrl is required for sending file or image'
+            });
         }
+
         if (contentType === 'text' && fileUrl) {
             return res.status(400).json({
                 message: 'fileUrl should not be provided for text messages'
-            })
+            });
         }
 
+        // Cloudinary upload
+        let uploadedFileUrl = '';
         if (fileUrl) {
             const file = await cloudinary.uploader.upload(fileUrl, {
                 folder: 'chatFiles',
-                resourse_type: 'auto'
-            })
+                resource_type: 'auto'  // ← fixed typo (was resourse_type)
+            });
+            uploadedFileUrl = file.secure_url;  // ← actually store the result
         }
 
-        const message = new Message({
-            sender, receiver, content, contentType, fileUrl: fileUrl || ''
-        })
-        await message.save();
-        res.status(201).json({
+        // Save message
+        const newMessage = new Message({
+            sender: fromUserId,
+            receiver: toUserId,
+            content: messages,
+            contentType,
+            fileUrl: uploadedFileUrl
+        });
+
+        await newMessage.save();
+
+        return res.status(201).json({
             message: 'Message sent successfully',
-            data: message
-        })
+            data: newMessage
+        });
 
     } catch (e) {
+        console.error('sendMessage error:', e.message);  // ← log the actual error
         return res.status(500).json({
-            message: 'Failed to send message'
-        })
+            message: 'Failed to send message',
+            error: e.message  // ← helpful during development
+        });
     }
 }
 
 export const getMessages = async (req, res) => {
     try {
-        const { sender, receiver } = req.body;
-        if (!sender || !receiver) {
-            return res.status(400).json({
-                message: 'please give all info'
-            })
-        }
+        const { userId } = req.params;
+        const myUserId = req.id;
 
-        const messages = await Message.find({ $or: [{ sender: sender, receiver: receiver }, { sender: receiver, receiver: sender }] }).sort({ createdAt: 1 });
+        const messages = await Message.find({
+            $or: [
+                { sender: myUserId, receiver: userId },
+                { sender: userId, receiver: myUserId }
+            ]
+        }).sort({ createdAt: 1 });
 
-        res.status(200).json({
+        return res.status(200).json({
             message: 'Messages fetched successfully',
             data: messages
-        })
+        });
+
     } catch (e) {
-        return res.status(500).json({
-            message: 'Failed to get messages'
-        })
+        console.error('getMessages error:', e.message);
+        return res.status(500).json({ message: 'Failed to fetch messages' });
     }
 }
 
@@ -270,12 +293,44 @@ export const getAllFriend = async (req, res) => {
 
         const user = await User.findById(id).select('friends');
 
-        const friend = await User.find({_id:user.friends})
+        const friend = await User.find({_id:user.friends}).select('-password')
+
+        //fetches last messages for each friend
+        const friendsWithLastMessage = await Promise.all(friend.map(async (frn)=>{
+            const lastMessage  = await Message.findOne({
+                $or:[
+                    {sender:id,receiver:frn._id},
+                    {sender:frn._id,receiver:id}
+                ]
+            })
+            .sort({createdAt:-1})
+            .select('content createdAt sender receiver contentType fileUrl');
+
+            return {
+                ...frn.toObject(),
+                lastMessage: lastMessage.content || '',
+                lastMessageTime: lastMessage.createdAt || null,
+                lastMessageSender: lastMessage.sender || null,
+                lastMessageReceiver: lastMessage.receiver || null,
+                lastMessageContentType: lastMessage.contentType || 'text',
+                lastMessageFileUrl: lastMessage.fileUrl || null
+            }
+
+        }))
+
+        //sort by most recent message
+        friendsWithLastMessage.sort((a,b)=>{
+            const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+            const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+            return timeB - timeA;
+        })
+
+
 
         console.log("from friends", user,friend);
 
         return res.status(200).json({
-            friends: friend,
+            friends: friendsWithLastMessage,
             success: true
         });
 

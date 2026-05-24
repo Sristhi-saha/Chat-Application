@@ -1,9 +1,8 @@
 import axios from 'axios';
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { IoIosAddCircle } from "react-icons/io";
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
-import { useRef } from 'react';
 
 const ShowChart = () => {
 
@@ -13,59 +12,144 @@ const ShowChart = () => {
     const [newSocket, setNewSocket] = useState(null);
     const [friends, setFriends] = useState([]);
     const [input, setInput] = useState('');
-    const [selected, setSelected] = useState('');
-    console.log(selected._id, friends)
+    const [selected, setSelected] = useState(null);
+    const bottomRef = useRef();
 
+    // Socket init
     useEffect(() => {
-        const newSocket = io('http://localhost:8000');
-        setNewSocket(newSocket);
+        const socket = io('http://localhost:8000');
+        setNewSocket(socket);
+        return () => socket.disconnect();
     }, [])
 
+    // Register user on socket
     useEffect(() => {
         if (newSocket && myuserId) {
             newSocket.emit('register', myuserId);
         }
-
-        return () => { if (newSocket) newSocket.disconnect() };
     }, [myuserId, newSocket])
 
-    const getFriends = async () => {
-        const friends = await axios.get('http://localhost:8000/api/user/getFriends', {
-            withCredentials: true
-        });
-        setFriends(friends.data.friends)
-    }
-
+    // Get friends
     useEffect(() => {
-        getFriends()
+        const getFriends = async () => {
+            try {
+                const res = await axios.get('http://localhost:8000/api/user/getFriends', {
+                    withCredentials: true
+                });
+                setFriends(res.data.friends);
+            } catch (err) {
+                console.error('getFriends error:', err.response?.data);
+            }
+        }
+        getFriends();
     }, [])
 
-    const bottomRef = useRef();
+    // ✅ Fix 1 — user_status in its own useEffect with newSocket dependency
+    useEffect(() => {
+        if (!newSocket) return;
+
+        newSocket.on("user_status", (data) => {
+            setFriends(prev => prev.map(friend => {
+                if (friend._id === data.userId) {
+                    return {
+                        ...friend,
+                        isOnline: data.status === 'online',
+                        lastSeen: data.lastSeen || friend.lastSeen
+                    };
+                }
+                return friend;
+            }));
+
+            setSelected(prev => {
+                if (prev?._id === data.userId) {
+                    return {
+                        ...prev,
+                        isOnline: data.status === 'online',
+                        lastSeen: data.lastSeen || prev.lastSeen
+                    };
+                }
+                return prev;
+            });
+        });
+
+        return () => newSocket.off("user_status");
+    }, [newSocket]);
+
+    // Auto scroll to bottom
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [messages])
 
-    const sendMessage = async () => {
-        console.log('cllled')
-        if (!input || !myuserId || !selected?._id) return;
-        console.log(input, myuserId, selected._id)
-        newSocket.emit("private_message", { toUserId: selected._id, message: input, fromUserID: myuserId });
-        setInput("");
+    // Fetch chat history
+    const getMessages = async (userId) => {
+        try {
+            const res = await axios.get(
+                `http://localhost:8000/api/message/getMessages/${userId}`,
+                { withCredentials: true }
+            );
+            const formatted = res.data.data.map((msg) => ({
+                from: msg.sender,
+                text: msg.content,
+                time: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }));
+            setMessages(formatted);
+        } catch (err) {
+            console.error('getMessages error:', err.response?.data);
+        }
     }
 
+    // Select friend and load messages
+    const handleSelectFriend = (friend) => {
+        setSelected(friend);
+        setMessages([]);
+        getMessages(friend._id);
+    }
+
+    // Send message
+    const sendMessage = async () => {
+        if (!input || !myuserId || !selected?._id) return;
+
+        try {
+            await axios.post(
+                'http://localhost:8000/api/message/sendMessage',
+                {
+                    toUserId: selected._id,
+                    messages: input,
+                    fromUserId: myuserId,
+                    contentType: 'text'
+                },
+                { withCredentials: true }
+            );
+
+            setMessages(prev => [...prev, {
+                from: myuserId,
+                text: input,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }]);
+
+            newSocket.emit("private_message", {
+                toUserId: selected._id,
+                message: input,
+                fromUserId: myuserId
+            });
+
+            setInput("");
+
+        } catch (err) {
+            console.error('Send failed:', err.response?.data);
+        }
+    }
+
+    // Receive incoming messages
     useEffect(() => {
         if (!newSocket) return;
 
         newSocket.on("receive_message", (msg) => {
-            console.log("RECEIVED:", msg);
-
-            setMessages((prev) => [
-                ...prev,
-                {
-                    from: msg.sender,
-                    text: msg.content
-                }
-            ]);
+            setMessages(prev => [...prev, {
+                from: msg.sender,
+                text: msg.content,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) // ✅ Fix 3
+            }]);
         });
 
         return () => newSocket.off("receive_message");
@@ -74,99 +158,145 @@ const ShowChart = () => {
     return (
         <div className="flex w-full h-screen overflow-hidden pt-16">
 
+            {/* SIDEBAR */}
             <div className="pt-2 w-[360px] h-full bg-[#e8eff1] pr-3 ml-17 pl-2">
                 <div className='text-black flex justify-between items-center'>
                     <h2 className='text-[18px] font-semibold pl-1'>Showchart</h2>
                     <IoIosAddCircle size={34} color='#6797ce' className='cursor-pointer' />
                 </div>
-                <div className="">
+                <div>
                     <input
                         type="text"
                         placeholder='Search or start new chat'
                         className='w-full mt-2 p-1 pl-4 bg-[#d3d6d6] rounded-xl'
                     />
                 </div>
-                <div>
-                    <div className='mt-4 flex flex-col gap-2'>
-                        {friends.map((e) => (
-                            <div
-                                key={e._id}
-                                onClick={() => setSelected(e)}
-                                className='bg-[#c3daee] p-2 rounded-xl flex items-center gap-1
-                                        shadow-md hover:shadow-lg
-                                        hover:bg-[#b5d1ea] hover:scale-[1.002]
-                                        transition-all duration-200 cursor-pointer
-                                        border border-white/40'>
+                <div className='mt-4 flex flex-col gap-2'>
+                    {friends.map((e) => (
+                        <div
+                            key={e._id}
+                            onClick={() => handleSelectFriend(e)}
+                            className={`p-2 rounded-xl flex items-center gap-2 shadow-md
+                                hover:bg-[#b5d1ea] transition-all duration-200
+                                cursor-pointer border border-white/40
+                                ${selected?._id === e._id ? 'bg-[#a8c8e8]' : 'bg-[#c3daee]'}`}
+                        >
+                            {/* Avatar with online dot */}
+                            <div className="relative flex-shrink-0">
                                 <img
-                                    src={e.profilePicture ? e.profilePicture : 'https://static.vecteezy.com/system/resources/previews/036/280/650/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'}
+                                    src={e.profilePicture || 'https://static.vecteezy.com/system/resources/previews/036/280/650/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'}
                                     alt=""
-                                    className='h-10 w-10 rounded-full bg-cover'
+                                    className='h-10 w-10 rounded-full object-cover'
                                 />
-                                <div className="flex ml-2">
-                                    <p>{e.name}</p>
-                                </div>
+                                <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white
+                                    ${e.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
+                                />
                             </div>
-                        ))}
-                    </div>
+
+                            {/* Name + last message */}
+                            <div className="flex-1 min-w-0">
+                                <p className='text-[14px] font-semibold text-gray-700'>{e.name}</p>
+                                <p className="text-xs text-gray-500 truncate">
+                                    {e.lastMessage
+                                        ? `${e.lastMessageSender === myuserId ? 'You: ' : e.name + ': '}${e.lastMessage.length > 20 ? e.lastMessage.slice(0, 20) + '...' : e.lastMessage}`
+                                        : 'No messages yet'
+                                    }
+                                </p>
+                            </div>
+
+                            {/* ✅ Fix 2 — only show time if lastMessageTime exists */}
+                            <div className="flex-shrink-0 text-right">
+                                <p className="text-xs text-gray-400">
+                                    {e.lastMessageTime
+                                        ? new Date(e.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                        : ''
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
 
             {/* CHAT COLUMN */}
-            {/* ✅ Fix 2: removed h-screen, kept min-h-0 */}
             <div className="flex-1 flex flex-col h-full min-h-0 bg-[#f4f7fb]">
 
                 {/* HEADER */}
                 <div className="p-3 bg-white border-b flex items-center gap-3 shrink-0">
-                    {selected ? <img className='h-10 w-10 rounded-full' src={selected.profilePicture ? selected.profilePicture : 'https://static.vecteezy.com/system/resources/previews/036/280/650/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'} alt="" /> : ""}
-                    <p className="font-semibold">
-                        {selected ? selected.name : "Select a chat"}
-                    </p>
+                    {selected && (
+                        <div className="relative">
+                            <img
+                                className='h-10 w-10 rounded-full object-cover'
+                                src={selected.profilePicture || 'https://static.vecteezy.com/system/resources/previews/036/280/650/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'}
+                                alt=""
+                            />
+                            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white
+                                ${selected.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
+                            />
+                        </div>
+                    )}
+                    <div className="flex-1">
+                        <p className="font-semibold">
+                            {selected ? selected.name : "Select a chat"}
+                        </p>
+                        {selected && (
+                            <p className={`text-xs ${selected.isOnline ? 'text-green-500' : 'text-gray-400'}`}>
+                                {selected.isOnline
+                                    ? 'Online'
+                                    : selected.lastSeen
+                                        ? `Last seen ${new Date(selected.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                        : 'Offline'
+                                }
+                            </p>
+                        )}
+                    </div>
                 </div>
 
                 {/* MESSAGES */}
-                {
-                    <div className="flex-1 min-h-0 overflow-y-auto p-3 bg-[#eaf2f6]">
-                        {messages.length === 0 ? (
-                            <div className="text-gray-400 text-center mt-10">
-                                No messages yet
-                            </div>
-                        ) : (
-                            messages.map((msg, i) => (
-                                <div
-                                    key={i}
-                                    className={`flex mb-2 ${msg.from === myuserId ? "justify-end" : "justify-start"}`}
-                                >
-                                    <div
-                                        className={`px-3 py-2 rounded-lg max-w-[60%] ${msg.from === myuserId
-                                            ? "bg-[#32628b] text-white"
-                                            : "bg-white"
-                                            }`}
-                                    >
-                                        {msg.text}
-                                    </div>
+                <div className="flex-1 min-h-0 overflow-y-auto p-3 bg-[#eaf2f6]">
+                    {messages.length === 0 ? (
+                        <div className="text-gray-400 text-center mt-10">
+                            {selected ? 'No messages yet' : 'Select a chat to start messaging'}
+                        </div>
+                    ) : (
+                        messages.map((msg, i) => (
+                            <div
+                                key={i}
+                                className={`flex mb-2 ${msg.from === myuserId ? "justify-end" : "justify-start"}`}
+                            >
+                                <div className={`px-3 py-2 rounded-lg max-w-[60%] ${msg.from === myuserId
+                                    ? "bg-[#32628b] text-white"
+                                    : "bg-white"
+                                    }`}>
+                                    <p className="text-sm">{msg.text}</p>
+                                    {msg.time && (
+                                        <p className={`text-[10px] mt-1 text-right ${msg.from === myuserId ? 'text-blue-200' : 'text-gray-400'}`}>
+                                            {msg.time}
+                                        </p>
+                                    )}
                                 </div>
-                            ))
-                        )}
-                        <div ref={bottomRef} />
-                    </div>
-                }
+                            </div>
+                        ))
+                    )}
+                    <div ref={bottomRef} />
+                </div>
 
                 {/* INPUT */}
                 <div className="p-3 bg-white border-t flex gap-2 shrink-0">
                     <input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                         className="flex-1 border rounded-lg p-2"
                         placeholder="Type a message..."
                     />
                     <button
-                        onClick={() => sendMessage()}
+                        onClick={sendMessage}
                         className="bg-[#6e9ccd] text-white hover:bg-[#4e87b5] transition-all cursor-pointer font-semibold px-6 rounded-lg shadow shadow-[#949090d6]"
                     >
                         Send
                     </button>
                 </div>
-
             </div>
         </div>
     )
