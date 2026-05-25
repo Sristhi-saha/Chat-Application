@@ -13,6 +13,8 @@ const ShowChart = () => {
     const [friends, setFriends] = useState([]);
     const [input, setInput] = useState('');
     const [selected, setSelected] = useState(null);
+    const [selectedFriends, setSelectedFriends] = useState([]);
+    const [dialog, setDialog] = useState(false);
     const bottomRef = useRef();
 
     // Socket init
@@ -98,6 +100,12 @@ const ShowChart = () => {
         }
     }
 
+    const toggleSelect = (friendId) => {
+        setSelectedFriends(prev => 
+            prev.includes(friendId) ? prev.filter(id => id !== friendId) : [...prev, friendId]
+        )
+    }
+
     // Select friend and load messages
     const handleSelectFriend = (friend) => {
         setSelected(friend);
@@ -158,11 +166,98 @@ const ShowChart = () => {
     return (
         <div className="flex w-full h-screen overflow-hidden pt-16">
 
+          {dialog && (
+    <div
+        className='absolute top-0 left-0 w-full h-full bg-black/50 flex items-center justify-center z-10'
+        onClick={() => {setDialog(false) ,setSelectedFriends([]);}}
+    >
+        <div
+            className='bg-white p-6 rounded-lg w-[400px]'
+            onClick={(e) => e.stopPropagation()}
+        >
+            <h2 className='text-lg font-semibold mb-4'>Create Group</h2>
+            <input
+                type="text"
+                placeholder='Group name...'
+                className='w-full border-2 border-[#3d7ba1] p-2 rounded-2xl pl-4 mb-3'
+            />
+
+            {/* Selected tags */}
+            {selectedFriends.length > 0 && (
+                <div className='flex gap-2 mb-3 flex-wrap'>
+                    {selectedFriends.map(id => {
+                        const f = friends.find(f => f._id === id);
+                        return (
+                            <div key={id} className='flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full'>
+                                <span>{f?.name}</span>
+                                <span onClick={() => toggleSelect(id)} className='cursor-pointer font-bold hover:text-red-500'>×</span>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+
+            {/* ✅ friends.map() added, friend variable renamed to avoid conflict */}
+            <div className='flex gap-2 flex-col max-h-60 overflow-y-auto'>
+                {friends.map((friend) => (  // ← "friend" not "e" to avoid conflict
+                    <div
+                        key={friend._id}
+                        onClick={() => toggleSelect(friend._id)}  // ← no event parameter
+                        className={`p-2 rounded-2xl flex items-center gap-2 cursor-pointer transition-all
+                            ${selectedFriends.includes(friend._id)
+                                ? 'border-2 border-blue-400 bg-blue-50'
+                                : 'border-2 border-blue-100'
+                            }`}
+                    >
+                        <div className="relative flex-shrink-0">
+                            <img
+                                src={friend.profilePicture || 'https://static.vecteezy.com/system/resources/previews/036/280/650/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'}
+                                alt=""
+                                className='h-10 w-10 rounded-full object-cover'
+                            />
+                            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white
+                                ${friend.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className='text-[14px] font-semibold text-gray-700'>{friend.name}</p>
+                            <p className="text-xs text-gray-500 truncate">{friend.bio}</p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0
+                            ${selectedFriends.includes(friend._id) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}
+                        >
+                            {selectedFriends.includes(friend._id) && (
+                                <span className='text-white text-xs'>✓</span>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className='flex gap-2 mt-4'>
+                <button
+                    onClick={() => { setDialog(false); setSelectedFriends([]); }}
+                    className='flex-1 border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 cursor-pointer'
+                >
+                    Cancel
+                </button>
+                <button
+                    disabled={selectedFriends.length === 0}
+                    className={`flex-1 text-white px-4 py-2 rounded-lg
+                        ${selectedFriends.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#6797ce] hover:bg-[#4e87b5] cursor-pointer'}`}
+                >
+                    Create ({selectedFriends.length})
+                </button>
+            </div>
+        </div>
+    </div>
+)}
+
             {/* SIDEBAR */}
             <div className="pt-2 w-[360px] h-full bg-[#e8eff1] pr-3 ml-17 pl-2">
                 <div className='text-black flex justify-between items-center'>
                     <h2 className='text-[18px] font-semibold pl-1'>Showchart</h2>
-                    <IoIosAddCircle size={34} color='#6797ce' className='cursor-pointer' />
+                    <IoIosAddCircle onClick={() => setDialog(true)} size={34} color='#6797ce' className='cursor-pointer' />
                 </div>
                 <div>
                     <input

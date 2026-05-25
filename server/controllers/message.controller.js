@@ -6,120 +6,125 @@ import cloudinary from '../config/cloudinary.js';
 import User from '../models/user.model.js';
 
 
-export const sendRequest = async(req,res)=>{
-    try{
+export const sendRequest = async (req, res) => {
+    try {
 
         const sendId = req.id;
-        const {receiveId} = req.body;
-        if(!sendId || !receiveId){
+        const { receiveId } = req.body;
+        if (!sendId || !receiveId) {
             return res.status(400).json({
-                message:'must provide send and receiveid',
-                success:false
+                message: 'must provide send and receiveid',
+                success: false
             })
         }
         const userfind = await User.findById(receiveId);
         let user;
-        if(userfind.requestSendBy.includes(sendId)){
+        if (userfind.requestSendBy.includes(sendId)) {
             console.log('already frn');
             return res.status(400).json({
-                message:'Already send',
-                success:false
+                message: 'Already send',
+                success: false
             })
-        }else{
-            user = await User.findByIdAndUpdate(receiveId,{$push:{requestSendBy:sendId}});
+        } else {
+            user = await User.findByIdAndUpdate(receiveId, { $push: { requestSendBy: sendId } });
         }
 
-        
-        console.log("from send request:",user);
+
+        console.log("from send request:", user);
         return res.status(200).json({
-            message:'request send',
-            success:true
+            message: 'request send',
+            success: true
         })
 
-    }catch(e){
+    } catch (e) {
         console.log(e.message.message)
         return res.status(500).json({
-            message:e.message,
-            success:false
+            message: e.message,
+            success: false
         })
     }
 }
 
-export const sendRequestBy = async(req,res)=>{
-    try{
+export const sendRequestBy = async (req, res) => {
+    try {
         const id = req.id;
         const data = await User.findById(id).select('requestSendBy').populate('requestSendBy');
-        console.log("from send requestBy:",data);
+        console.log("from send requestBy:", data);
         return res.status(200).json({
-            message:'fetched successfully',
+            message: 'fetched successfully',
             data
         })
-    }catch(e){
+    } catch (e) {
 
     }
 }
 
-export const acceptRequest = async(req,res)=>{
-    try{
-        const id= req.id;
-        const {sendId}= req.body;
-        if(!sendId){
+export const acceptRequest = async (req, res) => {
+    try {
+        const id = req.id;
+        const { sendId } = req.body;
+
+        if (!sendId) {
             return res.status(400).json({
-                message:'please accpect at first',
-                status:false
-            })
+                message: 'sendId is required',
+                success: false
+            });
         }
-        const response = await User.findByIdAndUpdate(id,{$push:{friends:sendId}});
-        const send = await User.findByIdAndUpdate(sendId,{$push:{friends:id}});
-        const remove = await User.findByIdAndUpdate(id,{$pull:{requestSendBy:sendId}})
-        const user = await User.findById(id);
+
+        // Add each other as friends
+        await User.findByIdAndUpdate(id, { $push: { friends: sendId } });
+        await User.findByIdAndUpdate(sendId, { $push: { friends: id } });
+
+        // Remove from requestSendBy
+        await User.findByIdAndUpdate(id, { $pull: { requestSendBy: sendId } });
 
         return res.status(200).json({
-            message:'Accept request successfully',
-            user
-        })
+            message: 'Request accepted successfully',
+            success: true  // ✅ add this
+        });
 
-    }catch(e){
+    } catch (e) {
+        console.error('acceptRequest error:', e.message); // ✅ log the error
         return res.status(500).json({
-            message:'server error',
-            status:false
-        })
+            message: 'Server error',
+            success: false
+        });
     }
 }
 
-export const rejectRequest = async(req,res)=>{
-    try{
-        const id= req.id;
-        const {sendId}= req.body;
-        if(!sendId){
+export const rejectRequest = async (req, res) => {
+    try {
+        const id = req.id;
+        const { sendId } = req.body;
+        if (!sendId) {
             return res.status(400).json({
-                message:'please accpect at first',
-                status:false
+                message: 'please accpect at first',
+                status: false
             })
         }
-        const response = await User.findByIdAndUpdate(id,{$pull:{requestSendBy:sendId}})
+        const response = await User.findByIdAndUpdate(id, { $pull: { requestSendBy: sendId } })
 
         return res.status(200).json({
-            message:'Accept reject successfully',
+            message: 'Accept reject successfully',
             response
         })
 
-    }catch(e){
+    } catch (e) {
         return res.status(500).json({
-            message:'server error',
-            status:false
+            message: 'server error',
+            status: false
         })
     }
 }
 
 export const sendMessage = async (req, res) => {
     try {
-        const { 
-            toUserId, 
-            fromUserId, 
-            messages, 
+        const {
+            toUserId,
+            fromUserId,
+            messages,
             contentType = 'text',  // ← default to 'text' if not provided
-            fileUrl 
+            fileUrl
         } = req.body;
 
         // Validation
@@ -252,28 +257,28 @@ export const deleteMessage = async (req, res) => {
     }
 }
 
-export const updateMessage = async(req,res)=>{
-    try{
-        const {messageId,content} = req.body;
-        if(!messageId || !content){
+export const updateMessage = async (req, res) => {
+    try {
+        const { messageId, content } = req.body;
+        if (!messageId || !content) {
             return res.status(400).json({
-                message:'messageId and content are required'
+                message: 'messageId and content are required'
             })
         }
-        const message = await Message.findByIdAndUpdate(messageId,{content},{new:true});
-        if(!message){
+        const message = await Message.findByIdAndUpdate(messageId, { content }, { new: true });
+        if (!message) {
             return res.status(404).json({
-                message:'Message not found'
+                message: 'Message not found'
             })
         }
 
         return res.status(200).json({
-            message:'Message updated successfully',
-            data:message
+            message: 'Message updated successfully',
+            data: message
         })
-    }catch(e){
+    } catch (e) {
         return res.status(500).json({
-            message:'Failed to update message'
+            message: 'Failed to update message'
         })
     }
 }
@@ -293,33 +298,33 @@ export const getAllFriend = async (req, res) => {
 
         const user = await User.findById(id).select('friends');
 
-        const friend = await User.find({_id:user.friends}).select('-password')
+        const friend = await User.find({ _id: user.friends }).select('-password')
 
         //fetches last messages for each friend
-        const friendsWithLastMessage = await Promise.all(friend.map(async (frn)=>{
-            const lastMessage  = await Message.findOne({
-                $or:[
-                    {sender:id,receiver:frn._id},
-                    {sender:frn._id,receiver:id}
+        const friendsWithLastMessage = await Promise.all(friend.map(async (frn) => {
+            const lastMessage = await Message.findOne({
+                $or: [
+                    { sender: id, receiver: frn._id },
+                    { sender: frn._id, receiver: id }
                 ]
             })
-            .sort({createdAt:-1})
-            .select('content createdAt sender receiver contentType fileUrl');
+                .sort({ createdAt: -1 })
+                .select('content createdAt sender receiver contentType fileUrl');
 
             return {
                 ...frn.toObject(),
-                lastMessage: lastMessage.content || '',
-                lastMessageTime: lastMessage.createdAt || null,
-                lastMessageSender: lastMessage.sender || null,
-                lastMessageReceiver: lastMessage.receiver || null,
-                lastMessageContentType: lastMessage.contentType || 'text',
-                lastMessageFileUrl: lastMessage.fileUrl || null
+                lastMessage: lastMessage ? lastMessage.content : '',
+                lastMessageTime: lastMessage ? lastMessage.createdAt : null,
+                lastMessageSender: lastMessage ? lastMessage.sender : null,
+                lastMessageReceiver: lastMessage ? lastMessage.receiver : null,
+                lastMessageContentType: lastMessage ? lastMessage.contentType : 'text',
+                lastMessageFileUrl: lastMessage ? lastMessage.fileUrl : null
             }
 
         }))
 
         //sort by most recent message
-        friendsWithLastMessage.sort((a,b)=>{
+        friendsWithLastMessage.sort((a, b) => {
             const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
             const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
             return timeB - timeA;
@@ -327,7 +332,7 @@ export const getAllFriend = async (req, res) => {
 
 
 
-        console.log("from friends", user,friend);
+        console.log("from friends", user, friend);
 
         return res.status(200).json({
             friends: friendsWithLastMessage,
