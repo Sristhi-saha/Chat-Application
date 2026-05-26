@@ -13,4 +13,5 @@ userRouter.post('/acceptRequest',authMiddelware,acceptRequest);
 userRouter.post('/rejectRequest',authMiddelware,rejectRequest);
 userRouter.get('/getFriends',authMiddelware,getAllFriend);
 
+
 export default userRouter;

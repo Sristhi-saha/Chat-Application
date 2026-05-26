@@ -4,6 +4,7 @@ config();
 import Message from '../models/message.model.js';
 import cloudinary from '../config/cloudinary.js';
 import User from '../models/user.model.js';
+import Group from '../models/group.model.js';
 
 
 export const sendRequest = async (req, res) => {
@@ -204,6 +205,27 @@ export const getMessages = async (req, res) => {
     }
 }
 
+export  const getGroupMessage = async(req,res)=>{
+    try{
+        const {groupId }= req.params;
+        const Messages = await Message.find({
+            groupId:groupId
+        })
+        .populate("sender","name profilePhoto") 
+        .sort({createdAt:1});
+
+        return res.status(200).json({
+            message:"group message fetch successfully",
+            data:Messages
+        })
+    }catch(e){
+        console.log(e);
+        return res.status(500).json({
+            messages:"failed to fetch data"
+        })
+    }
+}
+
 export const markMessageAsRead = async (req, res) => {
     try {
         const { messageId } = req.body;
@@ -347,3 +369,27 @@ export const getAllFriend = async (req, res) => {
         });
     }
 };
+
+
+export const getGroups = async (req, res) => {
+    try {
+        const userId = req.id; // from your auth middleware
+
+        // find all groups where this user is a member
+        const groups = await Group.find({ members: userId })
+            .populate("members", "name profilePicture isOnline") // get member details
+            .populate("createdBy", "name");                       // get creator name
+
+        // normalize: add groupId field so frontend can use group.groupId
+        const normalized = groups.map(g => ({
+            ...g.toObject(),       // convert mongoose doc to plain object
+            groupId: g._id.toString() // ← add groupId field
+        }));
+
+        res.status(200).json({ groups: normalized });
+
+    } catch (err) {
+        console.error("getGroups error:", err);
+        res.status(500).json({ message: "Failed to get groups" });
+    }
+}

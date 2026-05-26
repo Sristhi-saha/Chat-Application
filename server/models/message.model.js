@@ -9,8 +9,12 @@ const messageSchema = new mongoose.Schema({
     receiver: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
+        default:null
     },
+    groupId:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"Group",
+       },
     content: {
         type: String,
         required: true
@@ -23,6 +27,7 @@ const messageSchema = new mongoose.Schema({
         type:String,
         enum:['text','image','video','file']
     },
+
     fileUrl:{
         type:String,
         required:false

@@ -9,6 +9,7 @@ import {initSocket} from './socket/socket.js'
 import cookieParser from "cookie-parser";
 import userRouter from "./routes/users.route.js";
 import messageRouter from "./routes/message.route.js";
+import router from "./routes/group.route.js";
 dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
@@ -29,6 +30,7 @@ initSocket(io);
 app.use('/api/auth',authRouter);
 app.use('/api/user',userRouter);
 app.use('/api/message',messageRouter);
+app.use('/api/group',router)
 
 
 server.listen(port, () => {

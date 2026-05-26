@@ -1,5 +1,7 @@
 import Message from "../models/message.model.js";
 import User from "../models/user.model.js";
+import Group from "../models/group.model.js"
+
 
 export const initSocket = (io) => {
 
@@ -12,27 +14,30 @@ export const initSocket = (io) => {
     io.on("connection", (socket) => {
         console.log("User connected:", socket.id);
 
-        // REGISTER USER(like receive when socket.on)
+        // ─────────────────────────────────────────────
+        // REGISTER
+        // ─────────────────────────────────────────────
         socket.on("register", async (userId) => {
             onlineUsers[userId] = socket.id;
             socket.join(userId);
-
             console.log("Registered:", userId);
 
-            // ✅ Set online in DB
-            await User.findByIdAndUpdate(userId, {
-                isOnline: true
-            });
+            await User.findByIdAndUpdate(userId, { isOnline: true });
 
-            io.emit("user_status", {
-                userId,
-                status: "online"
+            io.emit("user_status", { userId, status: "online" });
+
+            // Auto-rejoin all groups on reconnect
+            const userGroups = await Group.find({ members: userId });
+            userGroups.forEach(group => {
+                socket.join(group._id.toString());
+                console.log(`User ${userId} rejoined group: ${group._id}`);
             });
         });
 
-        // means you are means receiving
+        // ─────────────────────────────────────────────
+        // PRIVATE MESSAGE
+        // ─────────────────────────────────────────────
         socket.on("private_message", async ({ toUserId, message, fromUserId }) => {
-
             console.log("MESSAGE:", { toUserId, message, fromUserId });
 
             if (!toUserId || !message || !fromUserId) {
@@ -47,30 +52,162 @@ export const initSocket = (io) => {
             };
 
             try {
-                // ✅ Send to receiver
                 if (onlineUsers[toUserId]) {
                     io.to(toUserId).emit("receive_message", msgData);
                 }
+                // echo to sender
+                socket.emit("receive_message", msgData);
 
-                // // ✅ Send back to sender
-                // socket.emit("receive_message", msgData);
-
-                // // ✅ Save in DB
-                // await Message.create({
-                //     sender: fromUserId,
-                //     receiver: toUserId,
-                //     content: message,
-                //     fileUrl: ""
-                // });
+                await Message.create({
+                    sender: fromUserId,
+                    receiver: toUserId,
+                    content: message,
+                    fileUrl: ""
+                });
 
             } catch (err) {
                 console.error("DB ERROR:", err);
             }
         });
 
-        // ✅ DISCONNECT
+        // ─────────────────────────────────────────────
+        // CREATE GROUP
+        // ─────────────────────────────────────────────
+        socket.on("create_group", async ({ name, memberIds, createdBy }) => {
+            try {
+                const group = await Group.create({
+                    name,
+                    members: memberIds,
+                    createdBy,
+                    createdAt: new Date()
+                });
+
+                const roomId = group._id.toString();
+
+                // Join creator's socket to the room
+                socket.join(roomId);
+
+                // ✅ FIXED — look up socketId from onlineUsers first
+                memberIds.forEach(memberId => {
+                    const memberSocketId = onlineUsers[memberId];              // userId → socketId
+                    const memberSocket = io.sockets.sockets.get(memberSocketId); // socketId → socket object
+                    if (memberSocket) memberSocket.join(roomId);               // join room
+                });
+
+                io.to(roomId).emit("group_created", {
+                    groupId: roomId,
+                    name,
+                    members: memberIds,
+                    createdBy
+                });
+
+                console.log(`Group created: ${roomId} by ${createdBy}`);
+
+            } catch (err) {
+                console.log('group created error', err);
+                socket.emit("error", { message: 'failed to create group' });
+            }
+        });
+
+        // ─────────────────────────────────────────────
+        // JOIN GROUP
+        // ─────────────────────────────────────────────
+        socket.on("join_group", async ({ groupId, userId }) => {
+            try {
+                await Group.findByIdAndUpdate(groupId, {
+                    $addToSet: { members: userId }
+                });
+
+                socket.join(groupId);
+
+                socket.to(groupId).emit("member_joined", {
+                    groupId,
+                    userId,
+                    joinedAt: new Date()
+                });
+
+                const history = await Message.find({ groupId })
+                    .sort({ createdAt: 1 })
+                    .limit(50);
+
+                socket.emit("group_history", { groupId, messages: history });
+
+                console.log(`User ${userId} joined group ${groupId}`);
+
+            } catch (err) {
+                console.log("join group error", err);
+                socket.emit("error", { message: 'failed to join group' });
+            }
+        });
+
+        // ─────────────────────────────────────────────
+        // SEND GROUP MESSAGE
+        // ─────────────────────────────────────────────
+        socket.on("send_group_message", async ({ groupId, message, fromUserId }) => {
+            if (!groupId || !message || !fromUserId) {
+                console.log("invalid group payload");
+                return;
+            }
+
+            // Debug: check how many sockets are in this room
+            const roomSockets = await io.in(groupId).fetchSockets();
+            console.log(`Room ${groupId} has ${roomSockets.length} sockets`);
+
+            const msgData = {
+                groupId,
+                sender: fromUserId,
+                content: message,
+                time: new Date().toISOString()
+            };
+
+            try {
+                // Delivers to ALL members including sender
+                io.to(groupId).emit("receive_group_message", msgData);
+
+                await Message.create({
+                    sender: fromUserId,
+                    groupId,
+                    content: message,
+                    fileUrl: ''
+                });
+
+                console.log("Group message sent to room:", groupId);
+
+            } catch (err) {
+                console.log('group message error', err);
+                socket.emit("error", { message: 'failed to send group message' });
+            }
+        });
+
+        // ─────────────────────────────────────────────
+        // LEAVE GROUP
+        // ─────────────────────────────────────────────
+        socket.on("leave_group", async ({ groupId, userId }) => {
+            try {
+                await Group.findByIdAndUpdate(groupId, {
+                    $pull: { members: userId }
+                });
+
+                socket.leave(groupId);
+
+                socket.to(groupId).emit("member_left", {
+                    groupId,
+                    userId,
+                    leftAt: new Date()
+                });
+
+                console.log(`User ${userId} left the group ${groupId}`);
+
+            } catch (err) {
+                console.log('leave group error', err);
+            }
+        });
+
+        // ─────────────────────────────────────────────
+        // DISCONNECT
+        // ─────────────────────────────────────────────
         socket.on("disconnect", async () => {
-            console.log("DISCONNECT FIRED:", socket.id); // ← check if this fires
+            console.log("DISCONNECT FIRED:", socket.id);
 
             let userId = null;
 
@@ -82,7 +219,7 @@ export const initSocket = (io) => {
                 }
             }
 
-            console.log("DISCONNECTED userId:", userId); // ← check if userId is found
+            console.log("DISCONNECTED userId:", userId);
 
             if (userId) {
                 await User.findByIdAndUpdate(userId, {
@@ -90,7 +227,7 @@ export const initSocket = (io) => {
                     lastSeen: new Date()
                 });
 
-                console.log("DB UPDATED for:", userId); // ← check if DB updated
+                console.log("DB UPDATED for:", userId);
 
                 io.emit("user_status", {
                     userId,
@@ -98,7 +235,7 @@ export const initSocket = (io) => {
                     lastSeen: new Date()
                 });
 
-                console.log("EMITTED user_status offline for:", userId); // ← check if emitted
+                console.log("EMITTED user_status offline for:", userId);
             }
         });
     });
