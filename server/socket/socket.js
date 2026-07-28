@@ -18,6 +18,17 @@ export const initSocket = (io) => {
         // REGISTER
         // ─────────────────────────────────────────────
         socket.on("register", async (userId) => {
+            // Kick out any stale socket already registered for this user
+            const oldSocketId = onlineUsers[userId];
+            if (oldSocketId && oldSocketId !== socket.id) {
+                const oldSocket = io.sockets.sockets.get(oldSocketId);
+                if (oldSocket) {
+                    oldSocket.leave(userId);
+                    oldSocket.disconnect(true);
+                    console.log(`Kicked stale socket ${oldSocketId} for user ${userId}`);
+                }
+            }
+
             onlineUsers[userId] = socket.id;
             socket.join(userId);
             console.log("Registered:", userId);
@@ -57,6 +68,7 @@ export const initSocket = (io) => {
                 }
                 // echo to sender
                 socket.emit("receive_message", msgData);
+                console.log("GOT A MESSAGE:", msgData);
 
                 await Message.create({
                     sender: fromUserId,
